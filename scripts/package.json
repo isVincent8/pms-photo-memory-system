@@ -1,0 +1,24 @@
+{
+  "name": "pms-data-process",
+  "version": "1.0.0",
+  "private": true,
+  "description": "PMS 数据工程脚本：照片迁移、Markdown 格式化、index.json 生成与校验",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "relocate": "node data-process/relocate_photos.js",
+    "exif": "python3 data-process/extract_exif.py",
+    "thumbs": "python3 data-process/make_thumbnails.py",
+    "format-md": "node data-process/markdown_formatter.js",
+    "gen-index": "node data-process/generate_index.js",
+    "validate": "node data-process/validate_index.js",
+    "pipeline": "npm run relocate && npm run exif && npm run thumbs && npm run format-md && npm run gen-index && npm run validate"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "gray-matter": "^4.0.3"
+  }
+}

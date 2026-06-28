@@ -1,0 +1,143 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://pms.local/data/index.schema.json",
+  "title": "PMS index.json",
+  "description": "PMS 数据索引契约。所有前端 Agent 通过此结构读取阶段/相册/人物/地点/照片数据。location 统一使用 { latitude, longitude, name } 以兼容地图 Agent 约定。所有 id 为安全字符串（仅 a-z0-9-_），避免 URL 与文件系统编码问题。",
+  "type": "object",
+  "required": ["version", "generatedAt", "stages", "albums", "people", "places", "photos"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "type": "string", "description": "索引结构版本号，语义化版本" },
+    "generatedAt": { "type": "string", "format": "date-time", "description": "索引生成时间（ISO 8601）" },
+    "site": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "title": { "type": "string" },
+        "author": { "type": "string" },
+        "description": { "type": "string" }
+      }
+    },
+    "stages": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/stage" }
+    },
+    "albums": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/album" }
+    },
+    "people": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/person" }
+    },
+    "places": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/place" }
+    },
+    "photos": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/photo" }
+    }
+  },
+  "$defs": {
+    "safeId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_-]*$",
+      "description": "安全字符串 id：小写字母/数字/连字符/下划线，首字符为字母或数字"
+    },
+    "geoLocation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["latitude", "longitude"],
+      "properties": {
+        "latitude": { "type": "number", "minimum": -90, "maximum": 90 },
+        "longitude": { "type": "number", "minimum": -180, "maximum": 180 },
+        "name": { "type": "string", "description": "地点可读名称" }
+      }
+    },
+    "stage": {
+      "type": "object",
+      "required": ["id", "name", "type", "startDate", "endDate", "themeColor"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/safeId" },
+        "name": { "type": "string" },
+        "type": {
+          "type": "string",
+          "enum": ["education", "career", "travel", "family", "custom"]
+        },
+        "startDate": { "type": "string", "format": "date" },
+        "endDate": { "type": "string", "format": "date" },
+        "cover": { "type": "string", "description": "封面图相对 web 根的路径，如 /img/..." },
+        "themeColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" },
+        "locations": { "type": "array", "items": { "type": "string" } },
+        "people": { "type": "array", "items": { "$ref": "#/$defs/safeId" } },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "description": { "type": "string" },
+        "content": { "type": "string", "description": "阶段 Markdown 正文文件路径，如 /data/stages/01-childhood.md" },
+        "albumIds": { "type": "array", "items": { "$ref": "#/$defs/safeId" } },
+        "photoIds": { "type": "array", "items": { "$ref": "#/$defs/safeId" } }
+      }
+    },
+    "album": {
+      "type": "object",
+      "required": ["id", "title", "date"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/safeId" },
+        "title": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "stageId": { "$ref": "#/$defs/safeId" },
+        "location": { "$ref": "#/$defs/geoLocation" },
+        "people": { "type": "array", "items": { "$ref": "#/$defs/safeId" } },
+        "cover": { "type": "string" },
+        "photoIds": { "type": "array", "items": { "$ref": "#/$defs/safeId" } },
+        "content": { "type": "string" }
+      }
+    },
+    "person": {
+      "type": "object",
+      "required": ["id", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/safeId" },
+        "name": { "type": "string" },
+        "avatar": { "type": "string" },
+        "bio": { "type": "string" },
+        "stageIds": { "type": "array", "items": { "$ref": "#/$defs/safeId" } },
+        "content": { "type": "string" }
+      }
+    },
+    "place": {
+      "type": "object",
+      "required": ["id", "name", "location"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/safeId" },
+        "name": { "type": "string" },
+        "location": { "$ref": "#/$defs/geoLocation" },
+        "stageIds": { "type": "array", "items": { "$ref": "#/$defs/safeId" } },
+        "photoIds": { "type": "array", "items": { "$ref": "#/$defs/safeId" } },
+        "content": { "type": "string" }
+      }
+    },
+    "photo": {
+      "type": "object",
+      "required": ["id", "src"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/safeId" },
+        "src": { "type": "string", "description": "原图相对 web 根路径" },
+        "thumbnail": { "type": "string", "description": "缩略图路径" },
+        "caption": { "type": "string" },
+        "date": { "type": ["string", "null"], "description": "拍摄时间 ISO 8601，无 EXIF 时为 null" },
+        "location": { "$ref": "#/$defs/geoLocation" },
+        "people": { "type": "array", "items": { "$ref": "#/$defs/safeId" } },
+        "stageId": { "$ref": "#/$defs/safeId" },
+        "albumId": { "$ref": "#/$defs/safeId" },
+        "width": { "type": "integer", "minimum": 0 },
+        "height": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

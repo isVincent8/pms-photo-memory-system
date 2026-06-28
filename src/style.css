@@ -1,0 +1,202 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 97%;
+    --foreground: 168 22% 7%;
+    --card: 0 0% 100%;
+    --card-foreground: 168 22% 7%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 168 22% 7%;
+    --primary: 132 14% 27%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 150 6% 92%;
+    --secondary-foreground: 168 22% 7%;
+    --muted: 150 6% 92%;
+    --muted-foreground: 160 6% 50%;
+    --accent: 204 45% 28%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 150 8% 87%;
+    --input: 150 8% 87%;
+    --ring: 132 14% 27%;
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    --background: 168 22% 7%;
+    --foreground: 0 0% 97%;
+    --card: 170 17% 10%;
+    --card-foreground: 0 0% 97%;
+    --popover: 170 17% 10%;
+    --popover-foreground: 0 0% 97%;
+    --primary: 132 14% 27%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 168 15% 15%;
+    --secondary-foreground: 0 0% 97%;
+    --muted: 168 15% 15%;
+    --muted-foreground: 160 6% 55%;
+    --accent: 204 45% 28%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 168 14% 18%;
+    --input: 168 14% 18%;
+    --ring: 132 14% 27%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    @apply scroll-smooth antialiased;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: theme('fontFamily.sans');
+    line-height: 1.6;
+  }
+
+  #app {
+    @apply min-h-screen;
+  }
+
+  h1, h2, h3, h4 {
+    @apply font-display tracking-tight text-foreground;
+  }
+
+  ::selection {
+    @apply bg-primary/20 text-foreground;
+  }
+}
+
+@layer components {
+  .page-container {
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+
+  .section-title {
+    @apply font-display text-2xl font-semibold tracking-tight text-foreground sm:text-3xl;
+  }
+
+  .surface {
+    @apply rounded-xl border border-border bg-card text-card-foreground shadow-card;
+  }
+
+  .surface-hover {
+    @apply transition-all duration-300 ease-out;
+  }
+  .surface-hover:hover {
+    @apply shadow-card-hover -translate-y-0.5;
+  }
+
+  .pill {
+    @apply inline-flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground;
+  }
+
+  .pill-primary {
+    @apply bg-primary text-primary-foreground;
+  }
+
+  .pill-accent {
+    @apply bg-accent text-accent-foreground;
+  }
+
+  .nav-pill {
+    @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-all duration-200;
+  }
+  .nav-pill-active {
+    @apply bg-foreground text-background;
+  }
+  .nav-pill-inactive {
+    @apply text-muted-foreground hover:bg-secondary hover:text-foreground;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* 减少动画偏好 */
+.reduce-motion *,
+.reduce-motion *::before,
+.reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
+/* 打印样式：隐藏导航与交互元素，优化内容布局 */
+@media print {
+  html {
+    @apply bg-white text-black;
+  }
+
+  /* 隐藏全局导航、侧边栏、灯箱、加载层 */
+  header.fixed,
+  aside.fixed,
+  aside.relative,
+  .fixed.inset-0.z-\[60\],
+  .fixed.inset-0.z-\[70\],
+  .fixed.inset-0.z-50 {
+    display: none !important;
+  }
+
+  /* 隐藏导出菜单、视图切换器、幻灯片按钮等交互控件 */
+  [data-export-menu],
+  .nav-pill,
+  .view-switcher,
+  button[aria-label="播放幻灯片"] {
+    display: none !important;
+  }
+
+  /* 主内容区全宽，移除 padding/margin 限制 */
+  #app,
+  main,
+  .page-container,
+  .mx-auto {
+    max-width: 100% !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* 图片尽量完整显示，避免被截断 */
+  img {
+    max-width: 100% !important;
+    page-break-inside: avoid;
+  }
+
+  /* 分页控制 */
+  h1, h2, h3 {
+    page-break-after: avoid;
+  }
+
+  section {
+    page-break-inside: avoid;
+  }
+}
