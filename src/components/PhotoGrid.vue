@@ -9,6 +9,7 @@
 import type { Photo } from '@/types'
 import { formatRelative } from '@/utils/dateUtils'
 import LazyImage from '@/components/LazyImage.vue'
+import { Check } from 'lucide-vue-next'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 export type GridMode = 'grid' | 'masonry'
@@ -22,14 +23,36 @@ const props = withDefaults(
     mode?: GridMode
     /** 每页渲染数量，默认 50 */
     pageSize?: number
+    /** 是否启用多选模式 */
+    selectable?: boolean
+    /** 当前选中的照片 id 列表 */
+    selectedIds?: string[]
   }>(),
-  { columns: 3, mode: 'masonry', pageSize: 50 },
+  { columns: 3, mode: 'masonry', pageSize: 50, selectable: false, selectedIds: () => [] },
 )
 
-const emit = defineEmits<{ (e: 'select', payload: { photo: Photo; index: number }): void }>()
+const emit = defineEmits<{
+  (e: 'select', payload: { photo: Photo; index: number }): void
+  (e: 'update:selectedIds', ids: string[]): void
+}>()
 
 function onSelect(photo: Photo, index: number) {
+  if (props.selectable) {
+    toggleSelect(photo.id)
+    return
+  }
   emit('select', { photo, index })
+}
+
+function toggleSelect(id: string) {
+  const current = new Set(props.selectedIds)
+  if (current.has(id)) current.delete(id)
+  else current.add(id)
+  emit('update:selectedIds', Array.from(current))
+}
+
+function isSelected(id: string): boolean {
+  return props.selectedIds.includes(id)
 }
 
 // —— 分页加载：大列表下避免一次性渲染全部照片 ——
@@ -92,10 +115,28 @@ function getAspectRatio(photo: Photo): number {
       v-for="(photo, index) in visiblePhotos"
       :key="photo.id"
       type="button"
-      class="group relative mb-5 block w-full overflow-hidden rounded-2xl bg-secondary text-left transition-all duration-300 hover:shadow-card-hover hover:-translate-y-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      :class="mode === 'masonry' ? 'break-inside-avoid' : ''"
+      class="group relative mb-5 block w-full overflow-hidden rounded-2xl bg-secondary text-left transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      :class="[
+        mode === 'masonry' ? 'break-inside-avoid' : '',
+        selectable
+          ? isSelected(photo.id)
+            ? 'ring-2 ring-primary shadow-card-hover'
+            : 'hover:shadow-card-hover hover:-translate-y-1'
+          : 'hover:shadow-card-hover hover:-translate-y-1',
+      ]"
       @click="onSelect(photo, index)"
     >
+      <!-- 多选指示器 -->
+      <div
+        v-if="selectable"
+        class="absolute left-2 top-2 z-10 flex h-5 w-5 items-center justify-center rounded-full border transition-colors"
+        :class="isSelected(photo.id)
+          ? 'border-primary bg-primary text-primary-foreground'
+          : 'border-white/70 bg-black/30 text-transparent group-hover:border-white group-hover:text-white/70'"
+      >
+        <Check :size="12" stroke-width="3" />
+      </div>
+
       <LazyImage
         :src="photo.thumbnail || photo.src"
         :alt="photo.caption ?? ''"

@@ -9,20 +9,22 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useDataStore } from '@/stores/dataStore'
 import { useUiStore } from '@/stores/uiStore'
+import { useRouter } from 'vue-router'
 import { useMarkdownContent } from '@/composables/useMarkdownContent'
 import type { Photo } from '@/types'
 import { formatDate } from '@/utils/dateUtils'
 import PhotoGrid from '@/components/PhotoGrid.vue'
 import ViewSwitcher from '@/components/ViewSwitcher.vue'
 import StoryMode from '@/components/StoryMode.vue'
+import AlbumEditor from '@/components/album/AlbumEditor.vue'
 import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
-import ExportMenu from '@/components/ExportMenu.vue'
-import { exportAlbumMarkdown, exportAlbumJson } from '@/utils/exportUtils'
-import { ChevronLeft, ChevronRight } from 'lucide-vue-next'
+import ExportPanel from '@/components/ExportPanel.vue'
+import { ChevronLeft, ChevronRight, Pencil, Download } from 'lucide-vue-next'
 
 const props = defineProps<{ id: string }>()
 const data = useDataStore()
 const ui = useUiStore()
+const router = useRouter()
 
 onMounted(() => {
   if (!data.loaded) data.load()
@@ -69,6 +71,8 @@ const photoViewMode = computed({
 })
 
 const storyModeOpen = ref(false)
+const albumEditorOpen = ref(false)
+const exportPanelOpen = ref(false)
 
 function onSelect({ index }: { photo: Photo; index: number }) {
   ui.openLightbox(photos.value, index)
@@ -79,13 +83,6 @@ function openStoryMode() {
   storyModeOpen.value = true
 }
 
-function onExport(key: string) {
-  if (!album.value) return
-  const ctx = { album: album.value, photos: photos.value, stage: stage.value }
-  if (key === 'markdown') exportAlbumMarkdown(ctx)
-  else if (key === 'json') exportAlbumJson(ctx)
-  else if (key === 'print') window.print()
-}
 </script>
 
 <template>
@@ -115,7 +112,22 @@ function onExport(key: string) {
           <h1 class="mt-4 font-display text-3xl font-semibold tracking-tight text-foreground md:text-5xl">
             {{ album.title }}
           </h1>
-          <ExportMenu class="mt-4" @select="onExport" />
+          <div class="mt-4 flex items-center gap-2">
+            <button
+              type="button"
+              class="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-foreground transition-colors hover:border-primary hover:text-primary"
+              @click="albumEditorOpen = true"
+            >
+              <Pencil :size="14" /> 编辑
+            </button>
+            <button
+              type="button"
+              class="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-foreground transition-colors hover:border-primary hover:text-primary"
+              @click="exportPanelOpen = true"
+            >
+              <Download :size="14" /> 导出
+            </button>
+          </div>
         </div>
         <p v-if="photos.length" class="mt-2 text-sm text-muted-foreground">
           共 {{ photos.length }} 张照片
@@ -139,6 +151,22 @@ function onExport(key: string) {
         v-if="storyModeOpen"
         :photos="photos"
         @close="storyModeOpen = false"
+      />
+
+      <AlbumEditor
+        v-if="albumEditorOpen"
+        :album-id="album.id"
+        @close="albumEditorOpen = false"
+        @saved="albumEditorOpen = false"
+        @deleted="router.push('/timeline')"
+      />
+
+      <ExportPanel
+        v-if="exportPanelOpen"
+        :photos="photos"
+        :title="album.title"
+        :subtitle="stage ? `所属阶段：${stage.name}` : undefined"
+        @close="exportPanelOpen = false"
       />
 
       <div v-else class="py-16 text-center text-sm text-muted-foreground">该相册暂无照片</div>

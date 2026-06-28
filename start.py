@@ -45,10 +45,10 @@ FRONTEND = {
 }
 
 BACKEND = {
-    # 当前项目无独立后端；若有，请改为 True 并填写实际启动命令
-    "enabled": False,
+    # Google Drive 同步后端（server.py）
+    "enabled": True,
     "name": "后端",
-    "command": ["python3", "server.py"],
+    "command": [str(PROJECT_ROOT / ".venv" / "bin" / "python3"), "server.py"],
     "port": 3000,
     "cwd": PROJECT_ROOT,
     "ready_timeout": 60,

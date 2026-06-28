@@ -20,6 +20,9 @@ import TimelineChrono from '@/components/timeline/TimelineChrono.vue'
 import StageHeader from '@/components/stage/StageHeader.vue'
 import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
 import PhotoGrid from '@/components/PhotoGrid.vue'
+import AlbumEditor from '@/components/album/AlbumEditor.vue'
+import ExportPanel from '@/components/ExportPanel.vue'
+import { Plus } from 'lucide-vue-next'
 
 const data = useDataStore()
 const ui = useUiStore()
@@ -45,10 +48,32 @@ const rightPane = ref<HTMLElement | null>(null)
 // 每个阶段的滚动位置记忆
 const scrollMemory = new Map<string, number>()
 
+const selecting = ref(false)
+const selectedPhotoIds = ref<string[]>([])
+const albumEditorOpen = ref(false)
+const exportPanelOpen = ref(false)
+const exportContext = ref<{ photos: Photo[]; title: string; subtitle?: string } | null>(null)
+
 onMounted(() => {
   if (!data.loaded) data.load()
   drawerOpen.value = window.innerWidth >= 768
 })
+
+function toggleSelecting() {
+  selecting.value = !selecting.value
+  selectedPhotoIds.value = []
+}
+
+function createStoryFromSelection() {
+  if (selectedPhotoIds.value.length === 0 || !activeStage.value) return
+  albumEditorOpen.value = true
+}
+
+function onAlbumEditorSaved() {
+  albumEditorOpen.value = false
+  selecting.value = false
+  selectedPhotoIds.value = []
+}
 
 // 默认选中第一个阶段
 watch(
@@ -91,11 +116,21 @@ function onPhotoSelect({ index }: { photo: Photo; index: number }) {
   ui.openLightbox(stagePhotos.value, index)
 }
 
+watch([() => selectedId.value, viewMode], () => {
+  selecting.value = false
+  selectedPhotoIds.value = []
+})
+
 function onChronoSelect({ index }: { photo: Photo; index: number }) {
   const datedPhotos = data.photos
     .filter((p) => p.date)
     .sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''))
   ui.openLightbox(datedPhotos, index)
+}
+
+function onChronoExport(ctx: { photos: Photo[]; title: string; subtitle?: string }) {
+  exportContext.value = ctx
+  exportPanelOpen.value = true
 }
 </script>
 
@@ -193,7 +228,7 @@ function onChronoSelect({ index }: { photo: Photo; index: number }) {
 
       <!-- 按年月日模式 -->
       <section v-else-if="viewMode === 'time'" class="px-5 py-6 md:px-10">
-        <TimelineChrono :photos="data.photos" @select="onChronoSelect" />
+        <TimelineChrono :photos="data.photos" exportable @select="onChronoSelect" @export="onChronoExport" />
       </section>
 
       <!-- 按阶段模式：选中阶段内容 -->
@@ -209,15 +244,56 @@ function onChronoSelect({ index }: { photo: Photo; index: number }) {
             <h2 class="font-display text-xl font-semibold text-foreground">照片</h2>
             <span class="text-xs text-muted-foreground">{{ stagePhotos.length }} 张</span>
             <span class="h-px flex-1 bg-border" />
-            <router-link
-              :to="`/stage/${activeStage.id}`"
-              class="inline-flex items-center gap-1 text-xs font-medium text-primary transition-colors hover:text-primary/80"
-            >
-              查看完整阶段 <span aria-hidden="true">→</span>
-            </router-link>
+            <template v-if="selecting">
+              <span class="text-xs text-muted-foreground">已选 {{ selectedPhotoIds.length }} 张</span>
+              <button
+                type="button"
+                :disabled="selectedPhotoIds.length === 0"
+                class="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+                @click="createStoryFromSelection"
+              >
+                <Plus :size="14" /> 创建故事
+              </button>
+              <button
+                type="button"
+                class="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-foreground transition-colors hover:bg-secondary"
+                @click="toggleSelecting"
+              >
+                取消
+              </button>
+            </template>
+            <template v-else>
+              <button
+                type="button"
+                class="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-foreground transition-colors hover:border-primary hover:text-primary"
+                @click="toggleSelecting"
+              >
+                <Plus :size="14" /> 选择建故事
+              </button>
+              <router-link
+                :to="`/stage/${activeStage.id}`"
+                class="inline-flex items-center gap-1 text-xs font-medium text-primary transition-colors hover:text-primary/80"
+              >
+                查看完整阶段 <span aria-hidden="true">→</span>
+              </router-link>
+            </template>
           </div>
-          <PhotoGrid :photos="stagePhotos" @select="onPhotoSelect" />
+          <PhotoGrid
+            :photos="stagePhotos"
+            :selectable="selecting"
+            :selected-ids="selectedPhotoIds"
+            @select="onPhotoSelect"
+            @update:selected-ids="selectedPhotoIds = $event"
+          />
         </section>
+
+        <AlbumEditor
+          v-if="albumEditorOpen"
+          :initial-photo-ids="selectedPhotoIds"
+          :initial-stage-id="activeStage?.id"
+          @close="albumEditorOpen = false"
+          @saved="onAlbumEditorSaved"
+        />
 
         <div v-else class="py-8 text-center text-sm text-muted-foreground">该阶段暂无照片</div>
       </article>
@@ -226,6 +302,14 @@ function onChronoSelect({ index }: { photo: Photo; index: number }) {
       <div v-else class="py-24 text-center">
         <p class="font-display text-sm text-muted-foreground">暂无阶段数据</p>
       </div>
+
+      <ExportPanel
+        v-if="exportPanelOpen && exportContext"
+        :photos="exportContext.photos"
+        :title="exportContext.title"
+        :subtitle="exportContext.subtitle"
+        @close="exportPanelOpen = false"
+      />
     </main>
   </div>
 </template>

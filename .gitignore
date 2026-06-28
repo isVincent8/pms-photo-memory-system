@@ -6,6 +6,11 @@ dist-ssr
 .env
 .env.local
 *.log
+
+# Google Drive / OAuth 凭据
+client_secret*.json
+credentials.json
+.token.json
 .vscode/*
 !.vscode/extensions.json
 .trae/documents

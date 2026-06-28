@@ -15,9 +15,9 @@ import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
 import PhotoGrid from '@/components/PhotoGrid.vue'
 import ViewSwitcher from '@/components/ViewSwitcher.vue'
 import StoryMode from '@/components/StoryMode.vue'
-import ExportMenu from '@/components/ExportMenu.vue'
-import { exportStageMarkdown, exportStageJson } from '@/utils/exportUtils'
-import { ChevronLeft, ChevronRight } from 'lucide-vue-next'
+import AlbumEditor from '@/components/album/AlbumEditor.vue'
+import ExportPanel from '@/components/ExportPanel.vue'
+import { ChevronLeft, ChevronRight, Pencil, Plus, Download } from 'lucide-vue-next'
 
 const props = defineProps<{ id: string }>()
 const data = useDataStore()
@@ -83,6 +83,11 @@ const photoViewMode = computed({
 })
 
 const storyModeOpen = ref(false)
+const selecting = ref(false)
+const selectedPhotoIds = ref<string[]>([])
+const albumEditorOpen = ref(false)
+const editingAlbumId = ref<string | undefined>(undefined)
+const exportPanelOpen = ref(false)
 
 function onPhotoSelect({ index }: { photo: Photo; index: number }) {
   ui.openLightbox(photos.value, index)
@@ -93,19 +98,29 @@ function openStoryMode() {
   storyModeOpen.value = true
 }
 
-function onExport(key: string) {
-  if (!stage.value) return
-  const ctx = {
-    stage: stage.value,
-    photos: photos.value,
-    albums: albums.value,
-    people: people.value,
-    places: places.value,
-  }
-  if (key === 'markdown') exportStageMarkdown(ctx)
-  else if (key === 'json') exportStageJson(ctx)
-  else if (key === 'print') window.print()
+function toggleSelecting() {
+  selecting.value = !selecting.value
+  selectedPhotoIds.value = []
 }
+
+function createStoryFromSelection() {
+  if (selectedPhotoIds.value.length === 0) return
+  editingAlbumId.value = undefined
+  albumEditorOpen.value = true
+}
+
+function editAlbum(id: string) {
+  editingAlbumId.value = id
+  albumEditorOpen.value = true
+}
+
+function onAlbumEditorSaved() {
+  albumEditorOpen.value = false
+  editingAlbumId.value = undefined
+  selecting.value = false
+  selectedPhotoIds.value = []
+}
+
 </script>
 
 <template>
@@ -120,7 +135,13 @@ function onExport(key: string) {
     <template v-else-if="stage">
       <div class="mb-6 flex items-start justify-between gap-4">
         <StageHeader :stage="stage" class="flex-1" />
-        <ExportMenu @select="onExport" />
+        <button
+          type="button"
+          class="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-foreground transition-colors hover:border-primary hover:text-primary"
+          @click="exportPanelOpen = true"
+        >
+          <Download :size="14" /> 导出
+        </button>
       </div>
 
       <!-- Markdown 故事 -->
@@ -131,16 +152,27 @@ function onExport(key: string) {
       <!-- 关联信息 -->
       <div class="mb-12 grid gap-6 md:grid-cols-2">
         <section v-if="albums.length > 0" class="surface p-5">
-          <h2 class="mb-3 font-display text-sm tracking-wide text-muted-foreground">关联相册</h2>
+          <h2 class="mb-3 font-display text-sm tracking-wide text-muted-foreground">关联故事</h2>
           <div class="flex flex-wrap gap-2">
-            <router-link
+            <div
               v-for="album in albums"
               :key="album.id"
-              :to="`/album/${album.id}`"
-              class="rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:border-primary hover:text-primary"
+              class="flex items-center gap-1 rounded-lg border border-border bg-card px-2 py-1 text-xs font-medium text-foreground transition-colors hover:border-primary"
             >
-              {{ album.title }}
-            </router-link>
+              <router-link
+                :to="`/album/${album.id}`"
+                class="text-foreground transition-colors hover:text-primary"
+              >
+                {{ album.title }}
+              </router-link>
+              <button
+                type="button"
+                class="rounded p-0.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
+                @click="editAlbum(album.id)"
+              >
+                <Pencil :size="10" />
+              </button>
+            </div>
           </div>
         </section>
 
@@ -198,15 +230,67 @@ function onExport(key: string) {
           <h2 class="font-display text-lg font-semibold text-foreground">照片</h2>
           <span class="text-xs text-muted-foreground">{{ photos.length }} 张</span>
           <span class="h-px flex-1 bg-border" />
-          <ViewSwitcher v-model="photoViewMode" @slideshow="openStoryMode" />
+          <template v-if="selecting">
+            <span class="text-xs text-muted-foreground">已选 {{ selectedPhotoIds.length }} 张</span>
+            <button
+              type="button"
+              :disabled="selectedPhotoIds.length === 0"
+              class="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+              @click="createStoryFromSelection"
+            >
+              <Plus :size="14" /> 创建故事
+            </button>
+            <button
+              type="button"
+              class="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-foreground transition-colors hover:bg-secondary"
+              @click="toggleSelecting"
+            >
+              取消
+            </button>
+          </template>
+          <template v-else>
+            <button
+              type="button"
+              class="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-foreground transition-colors hover:border-primary hover:text-primary"
+              @click="toggleSelecting"
+            >
+              <Plus :size="14" /> 选择照片建故事
+            </button>
+            <ViewSwitcher v-model="photoViewMode" @slideshow="openStoryMode" />
+          </template>
         </div>
-        <PhotoGrid :photos="photos" :mode="photoViewMode" @select="onPhotoSelect" />
+        <PhotoGrid
+          :photos="photos"
+          :mode="photoViewMode"
+          :selectable="selecting"
+          :selected-ids="selectedPhotoIds"
+          @select="onPhotoSelect"
+          @update:selected-ids="selectedPhotoIds = $event"
+        />
       </section>
 
       <StoryMode
         v-if="storyModeOpen"
         :photos="photos"
         @close="storyModeOpen = false"
+      />
+
+      <AlbumEditor
+        v-if="albumEditorOpen"
+        :album-id="editingAlbumId"
+        :initial-photo-ids="editingAlbumId ? undefined : selectedPhotoIds"
+        :initial-stage-id="stage?.id"
+        @close="albumEditorOpen = false"
+        @saved="onAlbumEditorSaved"
+        @deleted="onAlbumEditorSaved"
+      />
+
+      <ExportPanel
+        v-if="exportPanelOpen"
+        :photos="photos"
+        :title="stage.name"
+        :subtitle="`${photos.length} 张照片`"
+        @close="exportPanelOpen = false"
       />
 
       <div v-else class="py-8 text-center text-sm text-muted-foreground">该阶段暂无照片</div>

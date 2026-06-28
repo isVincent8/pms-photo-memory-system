@@ -34,6 +34,8 @@ export interface Photo {
   thumbnail?: string
   srcset?: ImageSrcSet
   caption?: string
+  /** 单张照片的详细故事/备注 */
+  note?: string
   date?: string | null
   location?: GeoLocation
   people?: string[]
@@ -71,15 +73,23 @@ export interface Stage {
   photoIds?: string[]
 }
 
+export type AlbumType = 'event' | 'story'
+
 export interface Album {
   id: string
   title: string
+  /** 故事/相册的起始日期 */
   date: string
+  /** 可选的结束日期，用于跨天事件 */
+  endDate?: string
   location?: GeoLocation
   stageId?: string
   cover?: string
   photoIds?: string[]
+  /** 多张照片组成的故事长文 */
   content?: string
+  /** 相册类型：事件集或故事集 */
+  type?: AlbumType
 }
 
 export interface Person {

@@ -36,3 +36,19 @@ export function formatRelative(input?: string, locale = 'zh-CN'): string {
     day: '2-digit',
   }).format(d)
 }
+
+export function getYearMonth(input?: string): { year: string; month: string } | null {
+  if (!input) return null
+  const d = new Date(input)
+  if (Number.isNaN(d.getTime())) return null
+  const year = String(d.getFullYear())
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  return { year, month }
+}
+
+export function formatYearMonth(input?: string, locale = 'zh-CN'): string {
+  if (!input) return ''
+  const d = new Date(input)
+  if (Number.isNaN(d.getTime())) return input
+  return new Intl.DateTimeFormat(locale, { year: 'numeric', month: 'long' }).format(d)
+}

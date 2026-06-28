@@ -5,6 +5,10 @@ import { loadIndex } from '@/api'
 
 export const IMPORTED_KEY = 'pms.importedIndex'
 
+function generateId(prefix: string): string {
+  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`
+}
+
 function storageAvailable(): boolean {
   return typeof window !== 'undefined' && typeof localStorage?.getItem === 'function'
 }
@@ -41,6 +45,22 @@ export const useDataStore = defineStore('data', () => {
     places.value = idx.places ?? []
     photos.value = idx.photos ?? []
     loaded.value = true
+  }
+
+  function persist() {
+    if (!storageAvailable()) return
+    const idx: PmsIndex = {
+      version: 'edited',
+      generatedAt: new Date().toISOString(),
+      site: site.value ?? undefined,
+      stages: stages.value,
+      albums: albums.value,
+      people: people.value,
+      places: places.value,
+      photos: photos.value,
+    }
+    safeSetItem(IMPORTED_KEY, JSON.stringify(idx))
+    imported.value = true
   }
 
   async function load() {
@@ -135,6 +155,95 @@ export const useDataStore = defineStore('data', () => {
     return photos.value.filter((p) => p.location?.name === place.location?.name)
   }
 
+  // —— 本地编辑变更（保存到 localStorage） ——
+
+  function updatePhoto(id: string, patch: Partial<Photo>) {
+    const idx = photos.value.findIndex((p) => p.id === id)
+    if (idx === -1) return
+    photos.value[idx] = { ...photos.value[idx], ...patch }
+    persist()
+  }
+
+  function updateStage(id: string, patch: Partial<Stage>) {
+    const idx = stages.value.findIndex((s) => s.id === id)
+    if (idx === -1) return
+    stages.value[idx] = { ...stages.value[idx], ...patch }
+    persist()
+  }
+
+  function createAlbum(input: Omit<Album, 'id'>): Album {
+    const album: Album = { ...input, id: generateId('album') }
+    albums.value.push(album)
+    // 同步更新照片的 albumId
+    album.photoIds?.forEach((pid) => {
+      const p = photos.value.find((ph) => ph.id === pid)
+      if (p) p.albumId = album.id
+    })
+    // 若属于某阶段，追加到阶段 albumIds
+    if (album.stageId) {
+      const s = stages.value.find((st) => st.id === album.stageId)
+      if (s && !s.albumIds?.includes(album.id)) {
+        s.albumIds = [...(s.albumIds ?? []), album.id]
+      }
+    }
+    persist()
+    return album
+  }
+
+  function updateAlbum(id: string, patch: Partial<Album>) {
+    const idx = albums.value.findIndex((a) => a.id === id)
+    if (idx === -1) return
+    const prev = albums.value[idx]
+    albums.value[idx] = { ...prev, ...patch }
+
+    // 如果 photoIds 变化，同步更新照片归属
+    if (patch.photoIds) {
+      photos.value.forEach((p) => {
+        if (p.albumId === id && !patch.photoIds!.includes(p.id)) {
+          p.albumId = undefined
+        }
+      })
+      patch.photoIds.forEach((pid) => {
+        const p = photos.value.find((ph) => ph.id === pid)
+        if (p) p.albumId = id
+      })
+    }
+
+    // 如果 stageId 变化，同步阶段 albumIds
+    if (patch.stageId !== undefined && patch.stageId !== prev.stageId) {
+      if (prev.stageId) {
+        const prevStage = stages.value.find((s) => s.id === prev.stageId)
+        if (prevStage) {
+          prevStage.albumIds = (prevStage.albumIds ?? []).filter((aid) => aid !== id)
+        }
+      }
+      if (patch.stageId) {
+        const nextStage = stages.value.find((s) => s.id === patch.stageId)
+        if (nextStage && !nextStage.albumIds?.includes(id)) {
+          nextStage.albumIds = [...(nextStage.albumIds ?? []), id]
+        }
+      }
+    }
+
+    persist()
+  }
+
+  function deleteAlbum(id: string) {
+    const album = albums.value.find((a) => a.id === id)
+    if (!album) return
+    if (album.stageId) {
+      const stage = stages.value.find((s) => s.id === album.stageId)
+      if (stage) {
+        stage.albumIds = (stage.albumIds ?? []).filter((aid) => aid !== id)
+      }
+    }
+    photos.value.forEach((p) => {
+      if (p.albumId === id) p.albumId = undefined
+    })
+    albums.value = albums.value.filter((a) => a.id !== id)
+    persist()
+  }
+
   return {
     site,
     stages,
@@ -162,5 +271,10 @@ export const useDataStore = defineStore('data', () => {
     photosOfAlbum,
     photosOfPerson,
     photosAtPlace,
+    updatePhoto,
+    updateStage,
+    createAlbum,
+    updateAlbum,
+    deleteAlbum,
   }
 })

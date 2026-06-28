@@ -5,10 +5,11 @@
  * 展示高清照片、说明文字、日期、地点、人物、所属相册与阶段，
  * 支持上一张 / 下一张导航，并可分享 URL。
  */
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useDataStore } from '@/stores/dataStore'
 import { formatDate } from '@/utils/dateUtils'
+import ExportPanel from '@/components/ExportPanel.vue'
 import { downloadText } from '@/utils/exportUtils'
 import {
   MapPin,
@@ -26,6 +27,9 @@ import {
   Gauge,
   Focus,
   Clock,
+  Pencil,
+  Check,
+  X,
 } from 'lucide-vue-next'
 
 const props = defineProps<{ id: string }>()
@@ -107,6 +111,32 @@ const dimensions = computed(() => {
   if (!photo.value?.width || !photo.value?.height) return null
   return `${photo.value.width} × ${photo.value.height}`
 })
+
+// —— 编辑模式 ——
+const isEditing = ref(false)
+const editCaption = ref('')
+const editNote = ref('')
+const exportPanelOpen = ref(false)
+
+function startEdit() {
+  if (!photo.value) return
+  editCaption.value = photo.value.caption ?? ''
+  editNote.value = photo.value.note ?? ''
+  isEditing.value = true
+}
+
+function cancelEdit() {
+  isEditing.value = false
+}
+
+function saveEdit() {
+  if (!photo.value) return
+  data.updatePhoto(photo.value.id, {
+    caption: editCaption.value.trim(),
+    note: editNote.value.trim(),
+  })
+  isEditing.value = false
+}
 </script>
 
 <template>
@@ -132,10 +162,26 @@ const dimensions = computed(() => {
           <button
             type="button"
             class="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-foreground transition-colors hover:border-primary"
+            aria-label="编辑说明"
+            @click="startEdit"
+          >
+            <Pencil :size="14" /> 编辑
+          </button>
+          <button
+            type="button"
+            class="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-foreground transition-colors hover:border-primary"
+            aria-label="导出照片"
+            @click="exportPanelOpen = true"
+          >
+            <Download :size="14" /> 导出
+          </button>
+          <button
+            type="button"
+            class="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-foreground transition-colors hover:border-primary"
             aria-label="下载原图"
             @click="onDownload"
           >
-            <Download :size="14" /> 下载
+            原图
           </button>
           <button
             type="button"
@@ -176,9 +222,53 @@ const dimensions = computed(() => {
       <!-- 元信息 -->
       <div class="grid gap-6 lg:grid-cols-3">
         <div class="lg:col-span-2">
-          <h1 class="font-display text-2xl font-semibold text-foreground">
-            {{ photo.caption || '无标题' }}
-          </h1>
+          <!-- 标题编辑 -->
+          <template v-if="isEditing">
+            <div class="space-y-4">
+              <div>
+                <label class="mb-1.5 block text-xs font-medium text-muted-foreground">标题 / 一句话说明</label>
+                <input
+                  v-model="editCaption"
+                  type="text"
+                  class="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                  placeholder="给这张照片起个标题"
+                />
+              </div>
+              <div>
+                <label class="mb-1.5 block text-xs font-medium text-muted-foreground">故事 / 备注</label>
+                <textarea
+                  v-model="editNote"
+                  rows="6"
+                  class="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm leading-relaxed text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                  placeholder="写下这张照片背后的故事..."
+                />
+              </div>
+              <div class="flex items-center gap-2">
+                <button
+                  type="button"
+                  class="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                  @click="saveEdit"
+                >
+                  <Check :size="14" /> 保存
+                </button>
+                <button
+                  type="button"
+                  class="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-foreground transition-colors hover:bg-secondary"
+                  @click="cancelEdit"
+                >
+                  <X :size="14" /> 取消
+                </button>
+              </div>
+            </div>
+          </template>
+          <template v-else>
+            <h1 class="font-display text-2xl font-semibold text-foreground">
+              {{ photo.caption || '无标题' }}
+            </h1>
+            <div v-if="photo.note" class="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+              {{ photo.note }}
+            </div>
+          </template>
 
           <div class="mt-4 flex flex-wrap gap-3 text-xs text-muted-foreground">
             <span v-if="photo.date" class="inline-flex items-center gap-1">
@@ -278,5 +368,12 @@ const dimensions = computed(() => {
         ← 返回时间轴
       </router-link>
     </div>
+
+    <ExportPanel
+      v-if="exportPanelOpen && photo"
+      :photos="[photo]"
+      :title="photo.caption || photo.id"
+      @close="exportPanelOpen = false"
+    />
   </div>
 </template>

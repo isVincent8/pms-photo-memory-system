@@ -10,12 +10,21 @@ import type { Photo } from '@/types'
 import { useDataStore } from '@/stores/dataStore'
 import { formatDate } from '@/utils/dateUtils'
 import LazyImage from '@/components/LazyImage.vue'
+import { Download } from 'lucide-vue-next'
+import { formatYearMonth } from '@/utils/dateUtils'
 
-const props = defineProps<{
-  photos: Photo[]
+const props = withDefaults(
+  defineProps<{
+    photos: Photo[]
+    exportable?: boolean
+  }>(),
+  { exportable: false },
+)
+
+const emit = defineEmits<{
+  (e: 'select', payload: { photo: Photo; index: number }): void
+  (e: 'export', payload: { photos: Photo[]; title: string; subtitle?: string }): void
 }>()
-
-const emit = defineEmits<{ (e: 'select', payload: { photo: Photo; index: number }): void }>()
 
 const data = useDataStore()
 
@@ -81,6 +90,22 @@ function stageName(stageId?: string): string | undefined {
 function monthLabel(month: string): string {
   return `${parseInt(month, 10)} 月`
 }
+
+function exportYear(year: string, photos: Photo[]) {
+  emit('export', {
+    photos,
+    title: `${year} 年照片`,
+    subtitle: `共 ${photos.length} 张`,
+  })
+}
+
+function exportMonth(year: string, month: string, photos: Photo[]) {
+  emit('export', {
+    photos,
+    title: formatYearMonth(`${year}-${month}-01`),
+    subtitle: `共 ${photos.length} 张`,
+  })
+}
 </script>
 
 <template>
@@ -98,13 +123,23 @@ function monthLabel(month: string): string {
       class="mb-10"
     >
       <!-- 年份标记 -->
-      <div class="relative mb-6 flex items-center">
-        <span class="absolute left-[-18px] flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground md:left-[-26px]">
-          {{ yearGroup.year.slice(2) }}
-        </span>
-        <h2 class="font-display text-2xl font-semibold text-foreground">
-          {{ yearGroup.year }}
-        </h2>
+      <div class="relative mb-6 flex items-center justify-between">
+        <div class="flex items-center">
+          <span class="absolute left-[-18px] flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground md:left-[-26px]">
+            {{ yearGroup.year.slice(2) }}
+          </span>
+          <h2 class="font-display text-2xl font-semibold text-foreground">
+            {{ yearGroup.year }}
+          </h2>
+        </div>
+        <button
+          v-if="exportable"
+          type="button"
+          class="inline-flex items-center gap-1 rounded-lg border border-border bg-card px-2 py-1 text-[11px] text-foreground transition-colors hover:border-primary hover:text-primary"
+          @click="exportYear(yearGroup.year, yearGroup.months.flatMap((m) => m.days.flatMap((d) => d.photos)))"
+        >
+          <Download :size="12" /> 导出全年
+        </button>
       </div>
 
       <div
@@ -113,9 +148,19 @@ function monthLabel(month: string): string {
         class="mb-8"
       >
         <!-- 月份标记 -->
-        <h3 class="mb-4 text-sm font-medium text-muted-foreground">
-          {{ monthLabel(monthGroup.month) }}
-        </h3>
+        <div class="mb-4 flex items-center justify-between">
+          <h3 class="text-sm font-medium text-muted-foreground">
+            {{ monthLabel(monthGroup.month) }}
+          </h3>
+          <button
+            v-if="exportable"
+            type="button"
+            class="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            @click="exportMonth(yearGroup.year, monthGroup.month, monthGroup.days.flatMap((d) => d.photos))"
+          >
+            <Download :size="12" /> 导出本月
+          </button>
+        </div>
 
         <div
           v-for="dayGroup in monthGroup.days"
