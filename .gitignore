@@ -9,3 +9,7 @@ dist-ssr
 .vscode/*
 !.vscode/extensions.json
 .trae/documents
+
+# Local exports and experiments
+exports/
+pms-cloud/
