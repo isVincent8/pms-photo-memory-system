@@ -13,3 +13,9 @@ dist-ssr
 # Local exports and experiments
 exports/
 pms-cloud/
+.vercel
+
+# CLI auth artifacts
+.gh-config/
+.gh-token.json
+.vercel/
